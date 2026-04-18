@@ -111,7 +111,7 @@ def main():
 
     if args.diff_file:
         try:
-            with open(args.diff_file) as f:
+            with open(args.diff_file, encoding='utf-8') as f:
                 diff_text = f.read()
         except FileNotFoundError:
             print(f"Error: file not found: {args.diff_file}", file=sys.stderr)
@@ -144,8 +144,15 @@ def main():
                     file_summaries.append((header, summary))
                 except RuntimeError as e:
                     print(f"Warning: failed to summarize {header}: {e}", file=sys.stderr)
+            if not file_summaries:
+                print(
+                    "Error: all per-file summaries failed — cannot synthesize.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
             result = synthesize(file_summaries, args.model)
     except FileNotFoundError:
+        # subprocess raises FileNotFoundError when the 'llm' binary is not on PATH
         print("llm not found — install with: pip install llm", file=sys.stderr)
         sys.exit(1)
     except RuntimeError as e:

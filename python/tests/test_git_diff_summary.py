@@ -69,6 +69,7 @@ def test_call_llm_default_model():
     assert result == "feat: do thing\n\nExplanation here."
     cmd = mock_run.call_args[0][0]
     assert cmd == ["llm"]
+    assert mock_run.call_args[1]["encoding"] == "utf-8"
 
 
 def test_call_llm_with_model():
@@ -221,3 +222,51 @@ def test_main_synthesis_runtime_error_exits_1(capsys):
     assert exc.value.code == 1
     captured = capsys.readouterr()
     assert "API error" in captured.err
+
+
+def test_main_all_per_file_summaries_fail_exits_1(capsys):
+    large_diff = open(os.path.join(FIXTURES, "large.diff")).read()
+    mock_stdin = io.StringIO(large_diff)
+    mock_stdin.isatty = lambda: False
+    with patch("sys.stdin", mock_stdin), \
+         patch("sys.argv", ["git_diff_summary.py"]), \
+         patch("git_diff_summary.summarize_file", side_effect=RuntimeError("API error")), \
+         pytest.raises(SystemExit) as exc:
+        git_diff_summary.main()
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "all per-file summaries failed" in captured.err
+
+
+def test_main_per_file_warning_continues(capsys):
+    # Two files: first fails, second succeeds — should warn but continue to synthesize
+    two_file_diff = (
+        "diff --git a/a.py b/a.py\n"
+        "index 0000000..1111111 100644\n"
+        "--- a/a.py\n+++ b/a.py\n@@ -0,0 +1 @@\n+x = 1\n"
+        "diff --git a/b.py b/b.py\n"
+        "index 0000000..2222222 100644\n"
+        "--- a/b.py\n+++ b/b.py\n@@ -0,0 +1 @@\n+y = 2\n"
+    )
+    mock_stdin = io.StringIO(two_file_diff)
+    mock_stdin.isatty = lambda: False
+    call_count = [0]
+
+    def fake_summarize_file(header, chunk, model_name=None):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            raise RuntimeError("first file failed")
+        return "Added y variable."
+
+    with patch("sys.stdin", mock_stdin), \
+         patch("sys.argv", ["git_diff_summary.py", "--threshold", "5"]), \
+         patch("git_diff_summary.summarize_file", side_effect=fake_summarize_file), \
+         patch("git_diff_summary.synthesize", return_value="fix: add vars\n\nAdded x and y.") as mock_synth:
+        git_diff_summary.main()
+
+    captured = capsys.readouterr()
+    assert "Warning" in captured.err
+    mock_synth.assert_called_once()
+    # synthesize receives only the successful summary
+    summaries_arg = mock_synth.call_args[0][0]
+    assert len(summaries_arg) == 1
