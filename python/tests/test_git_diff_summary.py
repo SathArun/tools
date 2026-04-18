@@ -1,11 +1,14 @@
 import sys
 import os
+import io
 import pytest
 from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import git_diff_summary  # noqa: E402
+
+FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 
 SMALL_DIFF = """\
 diff --git a/foo.py b/foo.py
@@ -125,3 +128,81 @@ def test_synthesize_combines_summaries():
     assert "Replaced token logic with JWT" in prompt
     assert "Added /login and /logout routes" in prompt
     assert "conventional commits" in prompt
+
+
+def test_main_reads_stdin_small_diff(capsys):
+    small_diff = open(os.path.join(FIXTURES, "small.diff")).read()
+    expected_output = "feat: update hello\n\nReturns hello string."
+    mock_stdin = io.StringIO(small_diff)
+    mock_stdin.isatty = lambda: False
+    with patch("sys.argv", ["git_diff_summary.py"]), \
+         patch("sys.stdin", mock_stdin), \
+         patch("git_diff_summary.summarize_single", return_value=expected_output) as mock_single, \
+         patch("git_diff_summary.synthesize") as mock_synth:
+        git_diff_summary.main()
+    captured = capsys.readouterr()
+    assert captured.out.strip() == expected_output
+    mock_single.assert_called_once()
+    mock_synth.assert_not_called()
+
+
+def test_main_large_diff_uses_per_file_path(capsys):
+    large_diff = open(os.path.join(FIXTURES, "large.diff")).read()
+    per_file_summary = "Changed lines in file."
+    synthesis = "refactor: update generated files\n\nBulk update."
+    mock_stdin = io.StringIO(large_diff)
+    mock_stdin.isatty = lambda: False
+    with patch("sys.argv", ["git_diff_summary.py"]), \
+         patch("sys.stdin", mock_stdin), \
+         patch("git_diff_summary.summarize_file", return_value=per_file_summary), \
+         patch("git_diff_summary.synthesize", return_value=synthesis) as mock_synth:
+        git_diff_summary.main()
+    captured = capsys.readouterr()
+    assert captured.out.strip() == synthesis
+    mock_synth.assert_called_once()
+
+
+def test_main_empty_diff_exits_cleanly(capsys):
+    mock_stdin = io.StringIO("")
+    mock_stdin.isatty = lambda: False
+    with patch("sys.argv", ["git_diff_summary.py"]), \
+         patch("sys.stdin", mock_stdin):
+        git_diff_summary.main()
+    captured = capsys.readouterr()
+    assert "No changes in diff" in captured.out
+
+
+def test_main_no_stdin_no_file_exits_1(capsys):
+    with patch("sys.argv", ["git_diff_summary.py"]), \
+         patch("sys.stdin.isatty", return_value=True), \
+         pytest.raises(SystemExit) as exc:
+        git_diff_summary.main()
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "stdin" in captured.err or "file" in captured.err
+
+
+def test_main_reads_from_file(tmp_path, capsys):
+    diff_file = tmp_path / "test.diff"
+    small_diff = open(os.path.join(FIXTURES, "small.diff")).read()
+    diff_file.write_text(small_diff)
+    expected = "feat: update\n\nExplanation."
+    with patch("sys.argv", ["git_diff_summary.py", "--file", str(diff_file)]), \
+         patch("git_diff_summary.summarize_single", return_value=expected):
+        git_diff_summary.main()
+    captured = capsys.readouterr()
+    assert captured.out.strip() == expected
+
+
+def test_main_llm_not_installed_exits_1(capsys):
+    small_diff = open(os.path.join(FIXTURES, "small.diff")).read()
+    mock_stdin = io.StringIO(small_diff)
+    mock_stdin.isatty = lambda: False
+    with patch("sys.argv", ["git_diff_summary.py"]), \
+         patch("sys.stdin", mock_stdin), \
+         patch("subprocess.run", side_effect=FileNotFoundError("llm not found")), \
+         pytest.raises(SystemExit) as exc:
+        git_diff_summary.main()
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "pip install llm" in captured.err

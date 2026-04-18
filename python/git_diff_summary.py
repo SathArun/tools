@@ -108,7 +108,51 @@ def main():
         help="Read diff from file instead of stdin",
     )
     args = parser.parse_args()
-    print(f"args: {args}")  # temporary
+
+    if args.diff_file:
+        try:
+            with open(args.diff_file) as f:
+                diff_text = f.read()
+        except FileNotFoundError:
+            print(f"Error: file not found: {args.diff_file}", file=sys.stderr)
+            sys.exit(1)
+    elif not sys.stdin.isatty():
+        diff_text = sys.stdin.read()
+    else:
+        print(
+            "Error: provide a diff via stdin or --file\n"
+            "Example: git diff HEAD~1 | python git_diff_summary.py",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if not diff_text.strip():
+        print("No changes in diff.")
+        return
+
+    line_count = diff_text.count("\n")
+
+    try:
+        if line_count <= args.threshold:
+            result = summarize_single(diff_text, args.model)
+        else:
+            chunks = parse_diff_files(diff_text)
+            file_summaries = []
+            for header, chunk in chunks:
+                try:
+                    summary = summarize_file(header, chunk, args.model)
+                    file_summaries.append((header, summary))
+                except RuntimeError as e:
+                    print(f"Warning: failed to summarize {header}: {e}", file=sys.stderr)
+            result = synthesize(file_summaries, args.model)
+    except FileNotFoundError:
+        print("llm not found — install with: pip install llm", file=sys.stderr)
+        sys.exit(1)
+    except RuntimeError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(result)
 
 
 if __name__ == "__main__":
