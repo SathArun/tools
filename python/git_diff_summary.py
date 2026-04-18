@@ -44,7 +44,7 @@ def call_llm(prompt, model_name=None):
     cmd = ["llm"]
     if model_name:
         cmd += ["-m", model_name]
-    result = subprocess.run(cmd, input=prompt, text=True, capture_output=True)
+    result = subprocess.run(cmd, input=prompt, text=True, capture_output=True, encoding='utf-8')
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip())
     return result.stdout.strip()
