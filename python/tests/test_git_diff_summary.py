@@ -99,3 +99,14 @@ def test_summarize_single_no_model():
     with patch("git_diff_summary.call_llm", return_value="fix: typo\n\nFixed.") as mock_llm:
         git_diff_summary.summarize_single("diff")
     assert mock_llm.call_args[0][1] is None
+
+
+def test_summarize_file_sends_chunk():
+    with patch("git_diff_summary.call_llm", return_value="Added error handling.") as mock_llm:
+        result = git_diff_summary.summarize_file(
+            "diff --git a/auth.py b/auth.py", "chunk content", model_name=None
+        )
+    assert result == "Added error handling."
+    prompt = mock_llm.call_args[0][0]
+    assert "chunk content" in prompt
+    assert "1-2 sentences" in prompt

@@ -62,6 +62,15 @@ def summarize_single(diff_text, model_name=None):
     return call_llm(prompt, model_name)
 
 
+def summarize_file(header, chunk, model_name=None):
+    """Summarize a single file's diff in 1-2 sentences."""
+    prompt = (
+        "Summarize the changes to this file in 1-2 sentences, focusing on what"
+        f" changed and why it matters:\n\n{chunk}"
+    )
+    return call_llm(prompt, model_name)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Summarize a git diff using an LLM.",
