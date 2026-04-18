@@ -5,6 +5,37 @@ import argparse
 import sys
 
 
+def parse_diff_files(diff_text):
+    """Split a unified diff into per-file chunks.
+
+    Splits on 'diff --git' headers so new files, deletions, and renames
+    (where '--- a/' may be '/dev/null') are all handled correctly.
+
+    Returns list of (header_line, chunk_text) tuples, skipping empty chunks.
+    """
+    chunks = []
+    current_header = None
+    current_lines = []
+
+    for line in diff_text.splitlines(keepends=True):
+        if line.startswith("diff --git "):
+            if current_header is not None:
+                chunk = "".join(current_lines)
+                if chunk.strip():
+                    chunks.append((current_header, chunk))
+            current_header = line.rstrip("\n")
+            current_lines = [line]
+        else:
+            current_lines.append(line)
+
+    if current_header is not None:
+        chunk = "".join(current_lines)
+        if chunk.strip():
+            chunks.append((current_header, chunk))
+
+    return chunks
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Summarize a git diff using an LLM.",
