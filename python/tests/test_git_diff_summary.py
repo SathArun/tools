@@ -206,3 +206,18 @@ def test_main_llm_not_installed_exits_1(capsys):
     assert exc.value.code == 1
     captured = capsys.readouterr()
     assert "pip install llm" in captured.err
+
+
+def test_main_synthesis_runtime_error_exits_1(capsys):
+    large_diff = open(os.path.join(FIXTURES, "large.diff")).read()
+    mock_stdin = io.StringIO(large_diff)
+    mock_stdin.isatty = lambda: False
+    with patch("sys.stdin", mock_stdin), \
+         patch("sys.argv", ["git_diff_summary.py"]), \
+         patch("git_diff_summary.summarize_file", return_value="summary"), \
+         patch("git_diff_summary.synthesize", side_effect=RuntimeError("API error")), \
+         pytest.raises(SystemExit) as exc:
+        git_diff_summary.main()
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "API error" in captured.err
