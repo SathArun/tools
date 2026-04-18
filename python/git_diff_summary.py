@@ -2,6 +2,7 @@
 """Summarize a git diff using an LLM via the llm CLI."""
 
 import argparse
+import subprocess
 import sys
 
 
@@ -36,6 +37,17 @@ def parse_diff_files(diff_text):
             chunks.append((current_header, chunk))
 
     return chunks
+
+
+def call_llm(prompt, model_name=None):
+    """Send a prompt to the llm CLI and return the stripped response text."""
+    cmd = ["llm"]
+    if model_name:
+        cmd += ["-m", model_name]
+    result = subprocess.run(cmd, input=prompt, text=True, capture_output=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip())
+    return result.stdout.strip()
 
 
 def main():

@@ -55,3 +55,34 @@ def test_parse_diff_files_new_file():
 def test_parse_diff_files_empty():
     assert git_diff_summary.parse_diff_files("") == []
     assert git_diff_summary.parse_diff_files("   \n  ") == []
+
+
+from unittest.mock import patch, MagicMock
+
+
+def test_call_llm_default_model():
+    mock_result = MagicMock(returncode=0, stdout="feat: do thing\n\nExplanation here.")
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        result = git_diff_summary.call_llm("some prompt")
+    assert result == "feat: do thing\n\nExplanation here."
+    cmd = mock_run.call_args[0][0]
+    assert cmd == ["llm"]
+
+
+def test_call_llm_with_model():
+    mock_result = MagicMock(returncode=0, stdout="fix: patch bug\n\nDetails.")
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        result = git_diff_summary.call_llm("some prompt", model_name="gpt-4o")
+    assert result == "fix: patch bug\n\nDetails."
+    cmd = mock_run.call_args[0][0]
+    assert cmd == ["llm", "-m", "gpt-4o"]
+
+
+def test_call_llm_failure_raises():
+    mock_result = MagicMock(returncode=1, stderr="model not found")
+    with patch("subprocess.run", return_value=mock_result):
+        try:
+            git_diff_summary.call_llm("prompt")
+            assert False, "should have raised"
+        except RuntimeError as e:
+            assert "model not found" in str(e)
