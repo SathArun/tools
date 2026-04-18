@@ -1,5 +1,7 @@
 import sys
 import os
+import pytest
+from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -57,9 +59,6 @@ def test_parse_diff_files_empty():
     assert git_diff_summary.parse_diff_files("   \n  ") == []
 
 
-from unittest.mock import patch, MagicMock
-
-
 def test_call_llm_default_model():
     mock_result = MagicMock(returncode=0, stdout="feat: do thing\n\nExplanation here.")
     with patch("subprocess.run", return_value=mock_result) as mock_run:
@@ -81,8 +80,5 @@ def test_call_llm_with_model():
 def test_call_llm_failure_raises():
     mock_result = MagicMock(returncode=1, stderr="model not found")
     with patch("subprocess.run", return_value=mock_result):
-        try:
+        with pytest.raises(RuntimeError, match="model not found"):
             git_diff_summary.call_llm("prompt")
-            assert False, "should have raised"
-        except RuntimeError as e:
-            assert "model not found" in str(e)
