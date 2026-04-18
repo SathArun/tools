@@ -50,6 +50,18 @@ def call_llm(prompt, model_name=None):
     return result.stdout.strip()
 
 
+def summarize_single(diff_text, model_name=None):
+    """Summarize an entire diff in one LLM call (used for small diffs)."""
+    prompt = (
+        "Given these git diff changes, output exactly two parts separated by a blank line:\n"
+        "1) A git commit message using conventional commits format (subject ≤72 chars,"
+        " optional bullet body if there are multiple distinct changes).\n"
+        "2) A 2-3 sentence plain-English explanation of what changed and why.\n\n"
+        f"Changes:\n{diff_text}"
+    )
+    return call_llm(prompt, model_name)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Summarize a git diff using an LLM.",

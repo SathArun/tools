@@ -82,3 +82,20 @@ def test_call_llm_failure_raises():
     with patch("subprocess.run", return_value=mock_result):
         with pytest.raises(RuntimeError, match="model not found"):
             git_diff_summary.call_llm("prompt")
+
+
+def test_summarize_single_passes_full_diff():
+    expected = "feat: rewrite auth\n\nReplaced legacy token logic."
+    with patch("git_diff_summary.call_llm", return_value=expected) as mock_llm:
+        result = git_diff_summary.summarize_single("diff text here", model_name="claude-3")
+    assert result == expected
+    prompt = mock_llm.call_args[0][0]
+    assert "conventional commits" in prompt
+    assert "diff text here" in prompt
+    assert mock_llm.call_args[0][1] == "claude-3"
+
+
+def test_summarize_single_no_model():
+    with patch("git_diff_summary.call_llm", return_value="fix: typo\n\nFixed.") as mock_llm:
+        git_diff_summary.summarize_single("diff")
+    assert mock_llm.call_args[0][1] is None
