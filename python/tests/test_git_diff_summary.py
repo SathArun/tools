@@ -110,3 +110,18 @@ def test_summarize_file_sends_chunk():
     prompt = mock_llm.call_args[0][0]
     assert "chunk content" in prompt
     assert "1-2 sentences" in prompt
+
+
+def test_synthesize_combines_summaries():
+    summaries = [
+        ("diff --git a/auth.py b/auth.py", "Replaced token logic with JWT."),
+        ("diff --git a/routes.py b/routes.py", "Added /login and /logout routes."),
+    ]
+    expected = "feat: add JWT authentication\n\nReplaced legacy tokens with JWT."
+    with patch("git_diff_summary.call_llm", return_value=expected) as mock_llm:
+        result = git_diff_summary.synthesize(summaries, model_name=None)
+    assert result == expected
+    prompt = mock_llm.call_args[0][0]
+    assert "Replaced token logic with JWT" in prompt
+    assert "Added /login and /logout routes" in prompt
+    assert "conventional commits" in prompt

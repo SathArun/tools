@@ -71,6 +71,22 @@ def summarize_file(header, chunk, model_name=None):
     return call_llm(prompt, model_name)
 
 
+def synthesize(file_summaries, model_name=None):
+    """Given per-file summaries, produce final commit message and explanation."""
+    summaries_text = "\n".join(
+        f"- {header}: {summary}" for header, summary in file_summaries
+    )
+    prompt = (
+        "Given these per-file change summaries, output exactly two parts separated"
+        " by a blank line:\n"
+        "1) A git commit message using conventional commits format (subject ≤72 chars,"
+        " optional bullet body if there are multiple distinct changes).\n"
+        "2) A 2-3 sentence plain-English explanation of what changed and why.\n\n"
+        f"Changes:\n{summaries_text}"
+    )
+    return call_llm(prompt, model_name)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Summarize a git diff using an LLM.",
