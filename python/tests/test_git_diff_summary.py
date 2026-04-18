@@ -30,7 +30,7 @@ new file mode 100644
 index 0000000..abcdefg
 --- /dev/null
 +++ b/new.py
-@@ -0,0 +1,3 @@
+@@ -0,0 +1,2 @@
 +def new():
 +    pass
 """

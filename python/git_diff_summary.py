@@ -12,6 +12,8 @@ def parse_diff_files(diff_text):
     (where '--- a/' may be '/dev/null') are all handled correctly.
 
     Returns list of (header_line, chunk_text) tuples, skipping empty chunks.
+    Note: chunk_text includes the header line as its first line, making each
+    chunk a self-contained parseable diff suitable for passing to an LLM.
     """
     chunks = []
     current_header = None
