@@ -41,12 +41,15 @@ def parse_diff_files(diff_text):
 
 def call_llm(prompt, model_name=None):
     """Send a prompt to the llm CLI and return the stripped response text."""
-    cmd = ["llm"]
+    cmd = [sys.executable, "-m", "llm"]
     if model_name:
         cmd += ["-m", model_name]
     result = subprocess.run(cmd, input=prompt, text=True, capture_output=True, encoding='utf-8')
     if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip())
+        stderr = result.stderr.strip()
+        if "No module named" in stderr:
+            raise FileNotFoundError(stderr)
+        raise RuntimeError(stderr)
     return result.stdout.strip()
 
 
