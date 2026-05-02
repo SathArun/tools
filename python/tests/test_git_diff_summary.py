@@ -68,7 +68,7 @@ def test_call_llm_default_model():
         result = git_diff_summary.call_llm("some prompt")
     assert result == "feat: do thing\n\nExplanation here."
     cmd = mock_run.call_args[0][0]
-    assert cmd == ["llm"]
+    assert cmd == [sys.executable, "-m", "llm"]
     assert mock_run.call_args[1]["encoding"] == "utf-8"
 
 
@@ -78,7 +78,7 @@ def test_call_llm_with_model():
         result = git_diff_summary.call_llm("some prompt", model_name="gpt-4o")
     assert result == "fix: patch bug\n\nDetails."
     cmd = mock_run.call_args[0][0]
-    assert cmd == ["llm", "-m", "gpt-4o"]
+    assert cmd == [sys.executable, "-m", "llm", "-m", "gpt-4o"]
 
 
 def test_call_llm_failure_raises():
